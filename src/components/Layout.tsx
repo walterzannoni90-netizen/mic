@@ -42,6 +42,11 @@ export function Layout() {
                 Le mie prenotazioni
               </NavLink>
             )}
+            {user && (
+              <NavLink to="/progresso" className={navLinkClass}>
+                Progresso
+              </NavLink>
+            )}
             {user?.role === 'admin' && (
               <NavLink to="/admin" className={navLinkClass}>
                 Admin
@@ -100,24 +105,24 @@ export function Footer() {
             <span className="font-display font-bold uppercase tracking-widest">Back in Shape</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Personal training e coaching su misura. La tua trasformazione inizia qui.
+            Personal training su misura a Milano. La tua trasformazione inizia qui.
           </p>
         </div>
         <div className="text-sm">
           <p className="mb-2 font-semibold uppercase tracking-wider text-primary">Contatti</p>
-          <p className="text-muted-foreground">Via del Fitness 12, Milano</p>
-          <p className="text-muted-foreground">info@marziamicillo.it</p>
-          <p className="text-muted-foreground">+39 333 123 4567</p>
+          <p className="text-muted-foreground">Via Tullio Ostilio 8, Milano</p>
+          <p className="text-muted-foreground">marzia.micillo91@gmail.com</p>
+          <p className="text-muted-foreground">333 932 4861</p>
         </div>
         <div className="text-sm">
           <p className="mb-2 font-semibold uppercase tracking-wider text-primary">Orari</p>
-          <p className="text-muted-foreground">Lun – Ven: 7:00 – 21:00</p>
+          <p className="text-muted-foreground">Lun – Ven: 8:00 – 20:00</p>
           <p className="text-muted-foreground">Sabato: 8:00 – 13:00</p>
           <p className="text-muted-foreground">Domenica: chiuso</p>
         </div>
       </div>
       <div className="border-t border-border/60 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Marzia Micillo — Demo locale, nessun dato reale viene inviato.
+        © {new Date().getFullYear()} Marzia Micillo — Back in Shape
       </div>
     </footer>
   )

@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import { CalendarX } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import {
-  CANCEL_HOURS,
   apiCancelBooking,
   apiListBookings,
   apiListLessons,
@@ -56,8 +55,8 @@ export default function LeMiePrenotazioni() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="font-display mb-2 text-3xl font-bold uppercase">Le mie prenotazioni</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Puoi cancellare una lezione solo fino a {CANCEL_HOURS} ore prima dell'inizio.
+        <p className="mb-6 text-sm text-muted-foreground">
+        Puoi cancellare o spostare una lezione entro il giorno prima. Non puoi disdire il giorno stesso.
       </p>
 
       {message && (
@@ -93,7 +92,7 @@ export default function LeMiePrenotazioni() {
                       {l.attendedIds.includes(user?.id ?? '') && <Badge variant="outline">Svolta ✓</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {fmtDate(l.start)} alle {fmtTime(l.start)} · Coach: {l.coach}
+                      {fmtDate(l.start)} alle {fmtTime(l.start)}
                     </p>
                   </div>
                   {b.status === 'attiva' && !past && (
@@ -108,7 +107,7 @@ export default function LeMiePrenotazioni() {
                       </Button>
                       {!cancellable && (
                         <p className="mt-1 max-w-[220px] text-xs text-muted-foreground">
-                          Non cancellabile: mancano meno di {CANCEL_HOURS} ore all'inizio della lezione.
+                          Non puoi cancellare il giorno stesso. Disdici entro il giorno prima.
                         </p>
                       )}
                     </div>

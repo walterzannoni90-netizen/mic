@@ -82,6 +82,18 @@ create table if not exists public.payments (
 
 alter table public.payments enable row level security;
 
+-- 8. PROGRESS PHOTOS (foto prima/dopo)
+create table if not exists public.progress_photos (
+  id         text primary key,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  photo_url  text not null,
+  type       text not null check (type in ('before', 'after')),
+  date       timestamptz not null default now(),
+  notes      text not null default ''
+);
+
+alter table public.progress_photos enable row level security;
+
 -- ============================================================================
 -- ROW LEVEL SECURITY — regole di accesso
 -- ============================================================================
@@ -145,6 +157,19 @@ create policy "payments_insert_admin"
   on public.payments for insert
   with check ((select role from public.profiles where id = auth.uid()) = 'admin');
 
+-- PROGRESS PHOTOS: ognuno vede le proprie, admin vede tutte
+create policy "progress_photos_select_own_or_admin"
+  on public.progress_photos for select
+  using (auth.uid() = user_id or (select role from public.profiles where id = auth.uid()) = 'admin');
+
+create policy "progress_photos_insert_own"
+  on public.progress_photos for insert
+  with check (auth.uid() = user_id);
+
+create policy "progress_photos_delete_own_or_admin"
+  on public.progress_photos for delete
+  using (auth.uid() = user_id or (select role from public.profiles where id = auth.uid()) = 'admin');
+
 -- ============================================================================
 -- FUNCTIONS & TRIGGERS
 -- ============================================================================
@@ -177,9 +202,13 @@ create or replace trigger on_auth_user_created
 -- ============================================================================
 
 insert into public.products (id, name, category, price, duration, description) values
-  ('p-scheda-forza', 'Scheda Forza — 8 settimane', 'scheda', 49, '8 settimane', 'Programma di forza progressivo. 3 sedute a settimana con video degli esercizi.'),
-  ('p-scheda-dimagrimento', 'Scheda Dimagrimento', 'scheda', 45, '6 settimane', 'Circuiti metabolici e cardio mirato per la perdita di peso.'),
-  ('p-scheda-glutei', 'Scheda Glutei & Core', 'scheda', 39, '6 settimane', 'Focus su glutei, addome e postura.'),
-  ('p-alim-base', 'Piano Alimentare Base', 'alimentazione', 59, '4 settimane', 'Piano personalizzato con lista della spesa e ricette.'),
-  ('p-alim-performance', 'Piano Alimentare Performance', 'alimentazione', 79, '8 settimane', 'Nutrizione sportiva avanzata con revisione bisettimanale.')
+  ('p-scheda-forza-uomo', 'Scheda Forza Uomo — 8 settimane', 'scheda', 49, '8 settimane', 'Programma di forza progressivo pensato per l\'uomo. 3 sedute a settimana con video degli esercizi.'),
+  ('p-scheda-forza-donna', 'Scheda Forza Donna — 8 settimane', 'scheda', 49, '8 settimane', 'Programma di forza progressivo pensato per la donna. 3 sedute a settimana con video degli esercizi.'),
+  ('p-scheda-dimagrimento-uomo', 'Scheda Dimagrimento Uomo', 'scheda', 45, '6 settimane', 'Circuiti metabolici e cardio mirato per la perdita di peso — versione uomo.'),
+  ('p-scheda-dimagrimento-donna', 'Scheda Dimagrimento Donna', 'scheda', 45, '6 settimane', 'Circuiti metabolici e cardio mirato per la perdita di peso — versione donna.'),
+  ('p-scheda-glutei', 'Scheda Glutei & Core', 'scheda', 39, '6 settimane', 'Focus su glutei, addome e postura. Adatto a tutti.'),
+  ('p-alim-base-uomo', 'Piano Alimentare Base Uomo', 'alimentazione', 59, '4 settimane', 'Piano personalizzato con lista della spesa e ricette — versione uomo.'),
+  ('p-alim-base-donna', 'Piano Alimentare Base Donna', 'alimentazione', 59, '4 settimane', 'Piano personalizzato con lista della spesa e ricette — versione donna.'),
+  ('p-alim-performance-uomo', 'Piano Alimentare Performance Uomo', 'alimentazione', 79, '8 settimane', 'Nutrizione sportiva avanzata con revisione bisettimanale — versione uomo.'),
+  ('p-alim-performance-donna', 'Piano Alimentare Performance Donna', 'alimentazione', 79, '8 settimane', 'Nutrizione sportiva avanzata con revisione bisettimanale — versione donna.')
 on conflict (id) do nothing;

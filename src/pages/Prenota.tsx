@@ -110,9 +110,9 @@ export default function Prenota() {
                           {booked ? 'Prenotata' : full ? 'Completo' : `${l.capacity - taken} posti`}
                         </Badge>
                       </div>
-                      <p className="mb-4 text-sm text-muted-foreground">
-                        Coach: {l.coach} · {taken}/{l.capacity} iscritti
-                      </p>
+                      <div className="mb-4 space-y-1 text-sm text-muted-foreground">
+                        <p>Utente 1 {taken >= 1 ? '❌' : '✅'} · Utente 2 {taken >= 2 ? '❌' : '✅'}</p>
+                      </div>
                       <Button
                         className="w-full"
                         variant={booked ? 'outline' : 'default'}

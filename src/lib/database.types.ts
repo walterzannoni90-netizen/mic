@@ -36,6 +36,11 @@ export interface Database {
         Insert: Omit<Payment, 'date'>
         Update: Partial<Payment>
       }
+      progress_photos: {
+        Row: ProgressPhoto
+        Insert: Omit<ProgressPhoto, 'id' | 'date'>
+        Update: Partial<ProgressPhoto>
+      }
     }
   }
 }
@@ -95,4 +100,13 @@ export interface Payment {
   date: string
   method: string
   note: string
+}
+
+export interface ProgressPhoto {
+  id: string
+  user_id: string
+  photo_url: string
+  type: 'before' | 'after'
+  date: string
+  notes: string
 }

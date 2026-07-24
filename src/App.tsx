@@ -7,6 +7,7 @@ import Register from './pages/Register'
 import Prenota from './pages/Prenota'
 import LeMiePrenotazioni from './pages/LeMiePrenotazioni'
 import Shop from './pages/Shop'
+import Progresso from './pages/Progresso'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUtenti from './pages/admin/AdminUtenti'
@@ -37,6 +38,14 @@ export default function App() {
             }
           />
           <Route path="/shop" element={<Shop />} />
+          <Route
+            path="/progresso"
+            element={
+              <RequireAuth>
+                <Progresso />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/admin"
             element={

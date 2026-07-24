@@ -99,7 +99,7 @@ export default function AdminDashboard() {
                         {fmtTime(l.start)} — {l.type}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Coach: {l.coach} · {attendees.length}/{l.capacity} prenotati
+                        {attendees.length}/{l.capacity} prenotati
                       </p>
                     </div>
                     <Badge variant="secondary">{euro(l.price)} / lezione</Badge>

@@ -63,20 +63,24 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 // ---------------------------------------------------------------- LESSONS ----
 
 const LESSON_TYPES: { type: string; coach: string; capacity: number; price: number }[] = [
-  { type: 'Personal Training', coach: 'Marzia Micillo', capacity: 1, price: 40 },
-  { type: 'Functional Training', coach: 'Marco Ferraro', capacity: 10, price: 15 },
-  { type: 'Pilates', coach: 'Sara Gentile', capacity: 8, price: 15 },
-  { type: 'Boxe', coach: 'Luca Rinaldi', capacity: 8, price: 18 },
-  { type: 'Total Body', coach: 'Marzia Micillo', capacity: 12, price: 15 },
+  { type: 'Personal Training', coach: 'Marzia Micillo', capacity: 2, price: 40 },
 ]
 
+// Orari: 8:00-12:00, pausa 13-14, 14:00-20:00 (ogni ora)
 const SLOTS: { h: number; m: number; t: number }[] = [
-  { h: 7, m: 0, t: 1 },
-  { h: 9, m: 30, t: 2 },
-  { h: 12, m: 30, t: 4 },
-  { h: 17, m: 30, t: 3 },
-  { h: 18, m: 30, t: 0 },
-  { h: 19, m: 45, t: 1 },
+  { h: 8, m: 0, t: 0 },
+  { h: 9, m: 0, t: 0 },
+  { h: 10, m: 0, t: 0 },
+  { h: 11, m: 0, t: 0 },
+  { h: 12, m: 0, t: 0 },
+  // pausa 13-14
+  { h: 14, m: 0, t: 0 },
+  { h: 15, m: 0, t: 0 },
+  { h: 16, m: 0, t: 0 },
+  { h: 17, m: 0, t: 0 },
+  { h: 18, m: 0, t: 0 },
+  { h: 19, m: 0, t: 0 },
+  { h: 20, m: 0, t: 0 },
 ]
 
 function generateLessonRows() {
@@ -148,7 +152,7 @@ export async function apiBookLesson(userId: string, lessonId: string): Promise<B
   return data as Booking
 }
 
-export const CANCEL_HOURS = 2
+export const CANCEL_HOURS = 24
 
 export function canCancel(lesson: Lesson): boolean {
   return new Date(lesson.start).getTime() - Date.now() >= CANCEL_HOURS * 3600_000
@@ -161,9 +165,32 @@ export async function apiCancelBooking(bookingId: string): Promise<void> {
   const { data: lessons } = await supabase.from('lessons').select('*').eq('id', b.lesson_id)
   const lesson = (lessons ?? [])[0] as any
   if (lesson && !canCancel({ ...lesson, attendedIds: [] })) {
-    throw new Error(`Non è più possibile cancellare: servono almeno ${CANCEL_HOURS} ore di preavviso.`)
+    throw new Error(`Non è più possibile cancellare: devi disdire entro il giorno prima.`)
   }
+
+  // Se è una cancellazione lo stesso giorno, invia notifica
+  if (lesson) {
+    const lessonDate = new Date((lesson as any).start)
+    const today = new Date()
+    const isSameDay = lessonDate.getDate() === today.getDate() &&
+      lessonDate.getMonth() === today.getMonth() &&
+      lessonDate.getFullYear() === today.getFullYear()
+    if (isSameDay) {
+      await apiNotifySameDayCancel(b, lesson as Lesson)
+    }
+  }
+
   await supabase.from('bookings').update({ status: 'cancellata' } as any).eq('id', bookingId)
+}
+
+// Notifica per cancellazioni stesso giorno (placeholder — da collegare a Telegram/email)
+export async function apiNotifySameDayCancel(booking: Booking, lesson: { type: string; start: string }): Promise<void> {
+  const { data: user } = await supabase.from('profiles').select('name').eq('id', booking.user_id).single()
+  const name = (user as any)?.name ?? booking.user_id
+  const msg = `⚠️ Cancellazione last-minute: ${name} ha disdetto ${lesson.type} delle ${fmtTime(lesson.start)}`
+  console.log(msg)
+  // TODO: integrare notifica via Telegram / email
+  // const { error } = await supabase.functions.invoke('notify', { body: { message: msg } })
 }
 
 // ---------------------------------------------------------------- SHOP -----
@@ -248,6 +275,42 @@ export function fmtDate(isoStr: string) {
 
 export function fmtTime(isoStr: string) {
   return new Date(isoStr).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+}
+
+// -------------------------------------------------------- PROGRESS PHOTOS ---
+
+export interface ProgressPhoto {
+  id: string
+  user_id: string
+  photo_url: string
+  type: 'before' | 'after'
+  date: string
+  notes: string
+}
+
+export async function apiUploadProgressPhoto(userId: string, file: File, type: 'before' | 'after', notes: string): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${userId}/${type}_${Date.now()}.${ext}`
+  const { error: uploadError } = await supabase.storage.from('progress-photos').upload(path, file)
+  if (uploadError) throw new Error('Errore upload foto: ' + uploadError.message)
+
+  const { data: { publicUrl } } = supabase.storage.from('progress-photos').getPublicUrl(path)
+
+  const { error: dbError } = await supabase.from('progress_photos').insert({
+    id: 'pp-' + uid(),
+    user_id: userId,
+    photo_url: publicUrl,
+    type,
+    notes,
+  })
+  if (dbError) throw new Error('Errore salvataggio foto: ' + dbError.message)
+
+  return publicUrl
+}
+
+export async function apiListProgressPhotos(userId: string): Promise<ProgressPhoto[]> {
+  const { data } = await supabase.from('progress_photos').select('*').eq('user_id', userId).order('date', { ascending: false })
+  return (data ?? []) as ProgressPhoto[]
 }
 
 // ----------------------------------------------------------- SEED (legacy) --
