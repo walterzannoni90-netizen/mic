@@ -1,13 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import {
-  apiCurrentUser,
-  apiLogin,
-  apiLogout,
-  apiRegister,
-  seedIfNeeded,
-  type Gender,
-  type User,
-} from './db'
+import { supabase } from './supabase'
+import type { User, Gender } from './db'
 
 interface AuthContextValue {
   user: User | null
@@ -23,26 +16,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  async function fetchProfile(id: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+    return data as User | null
+  }
+
   useEffect(() => {
-    seedIfNeeded()
-    setUser(apiCurrentUser())
-    setLoading(false)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const p = await fetchProfile(session.user.id)
+        setUser(p)
+      }
+      setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const p = await fetchProfile(session.user.id)
+        setUser(p)
+      } else {
+        setUser(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const u = await apiLogin(email, password)
-    setUser(u)
-    return u
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Email o password non corretti.' : error.message)
+    const p = await fetchProfile(data.user.id)
+    if (!p) throw new Error('Profilo non trovato.')
+    setUser(p)
+    return p
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string, gender: Gender) => {
-    const u = await apiRegister(name, email, password, gender)
-    setUser(u)
-    return u
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, gender, role: 'user' } },
+    })
+    if (error) throw new Error(error.message === 'User already registered' ? 'Esiste già un account con questa email.' : error.message)
+    if (!data.user) throw new Error('Errore durante la registrazione.')
+    const p = await fetchProfile(data.user.id)
+    if (!p) throw new Error('Errore durante la creazione del profilo.')
+    setUser(p)
+    return p
   }, [])
 
-  const logout = useCallback(() => {
-    apiLogout()
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut()
     setUser(null)
   }, [])
 

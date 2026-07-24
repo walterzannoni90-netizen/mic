@@ -36,8 +36,8 @@ export default function LeMiePrenotazioni() {
 
   const lessonById = useMemo(() => new Map(lessons.map((l) => [l.id, l])), [lessons])
   const mine = bookings
-    .filter((b) => b.userId === user?.id)
-    .sort((a, b) => (lessonById.get(a.lessonId)?.start ?? '').localeCompare(lessonById.get(b.lessonId)?.start ?? ''))
+    .filter((b) => b.user_id === user?.id)
+    .sort((a, b) => (lessonById.get(a.lesson_id)?.start ?? '').localeCompare(lessonById.get(b.lesson_id)?.start ?? ''))
 
   async function cancel(b: Booking) {
     setBusyId(b.id)
@@ -77,7 +77,7 @@ export default function LeMiePrenotazioni() {
       ) : (
         <div className="space-y-4">
           {mine.map((b) => {
-            const l = lessonById.get(b.lessonId)
+            const l = lessonById.get(b.lesson_id)
             if (!l) return null
             const cancellable = b.status === 'attiva' && canCancel(l)
             const past = new Date(l.start).getTime() < Date.now()

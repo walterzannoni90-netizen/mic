@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { ArrowRight, CalendarCheck, Dumbbell, Flame, HeartPulse, Salad, Star, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { generateLessons, fmtDate, fmtTime, euro } from '@/lib/db'
+import { apiListLessons, fmtDate, fmtTime, euro, type Lesson } from '@/lib/db'
 
 const services = [
   { icon: Dumbbell, title: 'Personal Training', desc: 'Sedute 1-a-1 con Marzia: tecnica, progressioni e motivazione su misura per te.' },
@@ -25,9 +26,13 @@ const testimonials = [
 ]
 
 export default function Home() {
-  const upcoming = generateLessons()
-    .filter((l) => new Date(l.start).getTime() > Date.now())
-    .slice(0, 6)
+  const [upcoming, setUpcoming] = useState<Lesson[]>([])
+
+  useEffect(() => {
+    apiListLessons().then((ls) => {
+      setUpcoming(ls.filter((l) => new Date(l.start).getTime() > Date.now()).slice(0, 6))
+    })
+  }, [])
 
   return (
     <div>

@@ -33,7 +33,7 @@ export default function Prenota() {
   }, [reload])
 
   const myActive = useMemo(
-    () => new Set(bookings.filter((b) => b.userId === user?.id && b.status === 'attiva').map((b) => b.lessonId)),
+    () => new Set(bookings.filter((b) => b.user_id === user?.id && b.status === 'attiva').map((b) => b.lesson_id)),
     [bookings, user],
   )
 
@@ -64,7 +64,7 @@ export default function Prenota() {
     }
   }
 
-  const activeCount = (l: Lesson) => bookings.filter((b) => b.lessonId === l.id && b.status === 'attiva').length
+  const activeCount = (l: Lesson) => bookings.filter((b) => b.lesson_id === l.id && b.status === 'attiva').length
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">

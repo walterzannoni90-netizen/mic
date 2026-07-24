@@ -89,7 +89,7 @@ export default function AdminDashboard() {
         )}
         <div className="space-y-4">
           {todayLessons.map((l) => {
-            const attendees = bookings.filter((b) => b.lessonId === l.id && b.status === 'attiva')
+            const attendees = bookings.filter((b) => b.lesson_id === l.id && b.status === 'attiva')
             return (
               <Card key={l.id}>
                 <CardContent className="p-5">
@@ -109,12 +109,12 @@ export default function AdminDashboard() {
                   ) : (
                     <ul className="space-y-2">
                       {attendees.map((b) => {
-                        const u = userById.get(b.userId)
-                        const present = l.attendedIds.includes(b.userId)
+                        const u = userById.get(b.user_id)
+                        const present = l.attendedIds.includes(b.user_id)
                         return (
                           <li key={b.id} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
                             <span>
-                              {u?.name ?? b.userId}{' '}
+                              {u?.name ?? b.user_id}{' '}
                               <span className="text-muted-foreground">({u?.gender === 'uomo' ? 'U' : 'D'})</span>
                             </span>
                             <label className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
                               </span>
                               <Checkbox
                                 checked={present}
-                                onCheckedChange={(v) => toggleAttendance(l.id, b.userId, v === true)}
+                                onCheckedChange={(v) => toggleAttendance(l.id, b.user_id, v === true)}
                               />
                             </label>
                           </li>

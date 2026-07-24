@@ -153,7 +153,7 @@ export default function AdminPagamenti() {
               {[...payments].reverse().map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2">
                   <span>
-                    <span className="font-semibold">{userById.get(p.userId)?.name ?? p.userId}</span> ·{' '}
+                    <span className="font-semibold">{userById.get(p.user_id)?.name ?? p.user_id}</span> ·{' '}
                     {fmtDate(p.date)} · {p.method}
                     {p.note && <span className="text-muted-foreground"> — {p.note}</span>}
                   </span>

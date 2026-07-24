@@ -106,9 +106,9 @@ export default function AdminUtenti() {
         ) : (
           <UserDetail
             user={selected}
-            bookings={bookings.filter((b) => b.userId === selected.id)}
+            bookings={bookings.filter((b) => b.user_id === selected.id)}
             lessonById={lessonById}
-            purchases={purchases.filter((p) => p.userId === selected.id)}
+            purchases={purchases.filter((p) => p.user_id === selected.id)}
             productById={productById}
             finance={computeUserFinance(selected.id, lessons, bookings, purchases, payments)}
           />
@@ -134,7 +134,7 @@ function UserDetail({
   finance: ReturnType<typeof computeUserFinance>
 }) {
   const attended = bookings.filter(
-    (b) => b.status === 'attiva' && (lessonById.get(b.lessonId)?.attendedIds ?? []).includes(user.id),
+    (b) => b.status === 'attiva' && (lessonById.get(b.lesson_id)?.attendedIds ?? []).includes(user.id),
   )
   return (
     <div className="space-y-6">
@@ -145,7 +145,7 @@ function UserDetail({
             <p className="text-sm text-muted-foreground">{user.email}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Sesso: <span className="capitalize">{user.gender}</span> · Registrato il{' '}
-              {fmtDate(user.createdAt)}
+              {fmtDate(user.created_at)}
             </p>
           </div>
           <div className="flex gap-6 text-center">
@@ -175,7 +175,7 @@ function UserDetail({
           ) : (
             <ul className="space-y-2 text-sm">
               {attended.map((b) => {
-                const l = lessonById.get(b.lessonId)!
+                const l = lessonById.get(b.lesson_id)!
                 return (
                   <li key={b.id} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
                     <span>
@@ -200,7 +200,7 @@ function UserDetail({
               {purchases.map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
                   <span>
-                    {productById.get(p.productId)?.name ?? p.productId} · {fmtDate(p.date)}
+                    {productById.get(p.product_id)?.name ?? p.product_id} · {fmtDate(p.date)}
                   </span>
                   <Badge variant="outline">{euro(p.price)}</Badge>
                 </li>
