@@ -37,42 +37,52 @@ export default function Home() {
           className="pointer-events-none absolute inset-0 opacity-30"
           style={{
             background:
-              'radial-gradient(ellipse 60% 50% at 70% 20%, hsl(36 95% 55% / 0.35), transparent 70%), radial-gradient(ellipse 50% 40% at 20% 80%, hsl(0 0% 100% / 0.06), transparent 70%)',
+              'radial-gradient(ellipse 60% 50% at 70% 20%, hsl(328 100% 44% / 0.35), transparent 70%), radial-gradient(ellipse 50% 40% at 20% 80%, hsl(0 0% 100% / 0.06), transparent 70%)',
           }}
         />
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-8 px-4 py-24 md:py-36">
-          <Badge variant="outline" className="border-primary/50 text-primary">
-            Palestra · Personal Training · Milano
-          </Badge>
-          <h1 className="font-display max-w-3xl text-5xl font-black uppercase leading-[0.95] tracking-tight md:text-7xl">
-            Allenati con <span className="text-primary">Marzia</span>.<br />
-            Diventa la tua versione più forte.
-          </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            Personal training, lezioni di gruppo e programmi a distanza. Un metodo concreto,
-            misurabile e costruito intorno alla tua vita — non il contrario.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" asChild>
-              <Link to="/prenota">
-                Prenota una lezione <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/shop">Schede & programmi online</Link>
-            </Button>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr] md:py-24">
+          <div className="flex flex-col items-start gap-8">
+            <Badge variant="outline" className="border-primary/50 text-primary">
+              Back in Shape · Personal Training · Marzia Micillo
+            </Badge>
+            <h1 className="font-display max-w-3xl text-5xl font-black uppercase leading-[0.95] tracking-tight md:text-7xl">
+              Allenati con <span className="text-primary">Marzia</span>.<br />
+              Diventa la tua versione più forte.
+            </h1>
+            <p className="max-w-xl text-lg text-muted-foreground">
+              Personal training, lezioni di gruppo e programmi a distanza. Un metodo concreto,
+              misurabile e costruito intorno alla tua vita — non il contrario.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button size="lg" asChild>
+                <Link to="/prenota">
+                  Prenota una lezione <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link to="/shop">Schede & programmi online</Link>
+              </Button>
+            </div>
+            <div className="mt-6 grid grid-cols-3 gap-8 text-center md:gap-16">
+              {[
+                ['10+', 'anni di esperienza'],
+                ['300+', 'clienti seguiti'],
+                ['6', 'giorni a settimana'],
+              ].map(([n, l]) => (
+                <div key={l}>
+                  <p className="font-display text-3xl font-black text-primary md:text-4xl">{n}</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{l}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="mt-6 grid grid-cols-3 gap-8 text-center md:gap-16">
-            {[
-              ['10+', 'anni di esperienza'],
-              ['300+', 'clienti seguiti'],
-              ['6', 'giorni a settimana'],
-            ].map(([n, l]) => (
-              <div key={l}>
-                <p className="font-display text-3xl font-black text-primary md:text-4xl">{n}</p>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{l}</p>
-              </div>
-            ))}
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-2xl bg-primary/20 blur-2xl" aria-hidden />
+            <img
+              src="images/hero-marzia.jpeg"
+              alt="Marzia Micillo personal trainer nella sua palestra"
+              className="relative aspect-[3/4] w-full rounded-2xl border border-primary/30 object-cover object-top shadow-2xl"
+            />
           </div>
         </div>
       </section>
@@ -80,8 +90,12 @@ export default function Home() {
       {/* ABOUT */}
       <section className="border-t border-border/60 bg-card/30">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 md:grid-cols-2">
-          <div className="flex aspect-[4/5] items-center justify-center rounded-xl border border-border bg-gradient-to-br from-secondary to-background">
-            <Dumbbell className="h-24 w-24 text-primary/40" />
+          <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-xl border border-border bg-gradient-to-br from-secondary to-background">
+            <img
+              src="images/logo.jpeg"
+              alt="Logo Back in Shape - Marzia Micillo"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div>
             <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">Chi sono</p>

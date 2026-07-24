@@ -1,5 +1,5 @@
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router'
-import { Dumbbell, LogOut, User as UserIcon } from 'lucide-react'
+import { LogOut, User as UserIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import type { ReactNode } from 'react'
@@ -17,12 +17,14 @@ export function Layout() {
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Dumbbell className="h-5 w-5" />
-            </span>
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src="images/logo.jpeg"
+              alt="Back in Shape - Marzia Micillo"
+              className="h-10 w-10 rounded-full border border-primary/40 object-cover"
+            />
             <span className="font-display text-lg font-bold uppercase tracking-widest">
-              Marzia Micillo
+              Back <span className="text-primary">in</span> Shape
             </span>
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
@@ -90,10 +92,12 @@ export function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Dumbbell className="h-4 w-4" />
-            </span>
-            <span className="font-display font-bold uppercase tracking-widest">Marzia Micillo</span>
+            <img
+              src="images/logo.jpeg"
+              alt="Back in Shape - Marzia Micillo"
+              className="h-9 w-9 rounded-full border border-primary/40 object-cover"
+            />
+            <span className="font-display font-bold uppercase tracking-widest">Back in Shape</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Personal training e coaching su misura. La tua trasformazione inizia qui.
