@@ -30,6 +30,7 @@ export interface Booking {
   lesson_id: string
   status: BookingStatus
   created_at: string
+  cancelled_at: string | null
 }
 
 export interface Product {
@@ -66,7 +67,7 @@ const LESSON_TYPES: { type: string; coach: string; capacity: number; price: numb
   { type: 'Personal Training', coach: 'Marzia Micillo', capacity: 2, price: 40 },
 ]
 
-// Orari: 8:00-12:00, pausa 13-14, 14:00-20:00 (ogni ora)
+// 8:00-12:00, pausa 13-14, 14:00-20:00 (ogni ora)
 const SLOTS: { h: number; m: number; t: number }[] = [
   { h: 8, m: 0, t: 0 },
   { h: 9, m: 0, t: 0 },
@@ -85,13 +86,16 @@ const SLOTS: { h: number; m: number; t: number }[] = [
 
 function generateLessonRows() {
   const lessons: Array<Omit<Lesson, 'attendedIds'>> = []
+  // Genera ID come YYYYMMDD-HHmm per consistenza (no Date.getTime/DST)
   const today = new Date()
   for (let d = -1; d <= 10; d++) {
     const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d)
     if (day.getDay() === 0) continue
     for (const slot of SLOTS) {
       const t = LESSON_TYPES[slot.t]
-      const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), slot.h, slot.m)
+      const start = new Date(
+        Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), slot.h - new Date().getTimezoneOffset() / 60, slot.m),
+      )
       const id = `les-${start.getFullYear()}${String(start.getMonth() + 1).padStart(2, '0')}${String(start.getDate()).padStart(2, '0')}-${slot.h}${slot.m}`
       lessons.push({ id, start: start.toISOString(), type: t.type, coach: t.coach, capacity: t.capacity, price: t.price })
     }
@@ -101,15 +105,15 @@ function generateLessonRows() {
 
 export async function apiListLessons(): Promise<Lesson[]> {
   const rows = generateLessonRows()
-  const { data: existing } = await supabase.from('lessons').select('id')
-  const existingIds = new Set((existing ?? []).map((l: any) => l.id))
-  const toInsert = rows.filter((r) => !existingIds.has(r.id))
-  for (const r of toInsert) {
-    await supabase.from('lessons').upsert(r, { ignoreDuplicates: true })
-  }
+  // Batch upsert (evita N+1 queries)
+  const { error: upsertErr } = await supabase.from('lessons').upsert(rows, { ignoreDuplicates: true })
+  if (upsertErr) throw new Error(upsertErr.message)
 
-  const { data: lessons } = await supabase.from('lessons').select('*')
-  const { data: attendance } = await supabase.from('attendance').select('*')
+  const { data: lessons, error } = await supabase.from('lessons').select('*')
+  if (error) throw new Error(error.message)
+
+  const { data: attendance, error: attErr } = await supabase.from('attendance').select('*')
+  if (attErr) throw new Error(attErr.message)
 
   const attMap = new Map<string, string[]>()
   for (const a of (attendance ?? []) as Array<{ lesson_id: string; user_id: string }>) {
@@ -126,30 +130,23 @@ export async function apiListLessons(): Promise<Lesson[]> {
 // ---------------------------------------------------------------- BOOKING ----
 
 export async function apiListBookings(): Promise<Booking[]> {
-  const { data } = await supabase.from('bookings').select('*')
+  const { data, error } = await supabase.from('bookings').select('*')
+  if (error) throw new Error(error.message)
   return (data ?? []) as Booking[]
 }
 
-export async function apiBookLesson(userId: string, lessonId: string): Promise<Booking> {
-  const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).single()
-  if (!lesson) throw new Error('Lezione non trovata.')
-  if (new Date((lesson as any).start).getTime() < Date.now()) throw new Error('Questa lezione è già iniziata o terminata.')
-
-  const { data: allBookings } = await supabase.from('bookings').select('*').eq('lesson_id', lessonId)
-  const bs = (allBookings ?? []) as Booking[]
-  const active = bs.filter((b) => b.status === 'attiva')
-  if (active.length >= (lesson as any).capacity) throw new Error('Lezione al completo.')
-
-  const existing = bs.find((b) => b.user_id === userId)
-  if (existing?.status === 'attiva') throw new Error('Hai già prenotato questa lezione.')
-  if (existing) {
-    const { data } = await supabase.from('bookings').update({ status: 'attiva', created_at: new Date().toISOString() } as any).eq('id', existing.id).select().single()
-    return data as Booking
-  }
-
-  const booking = { id: 'b-' + uid(), user_id: userId, lesson_id: lessonId, status: 'attiva' as const }
-  const { data } = await supabase.from('bookings').insert(booking).select().single()
-  return data as Booking
+export async function apiBookLesson(_userId: string, lessonId: string): Promise<Booking> {
+  // Usa RPC atomico per evitare race condition sul capacity
+  const { data, error } = await supabase.rpc('book_lesson', { p_lesson_id: lessonId })
+  if (error) throw new Error(error.message)
+  // Rileggi la prenotazione appena creata
+  const { data: booking, error: readErr } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('id', data as string)
+    .single()
+  if (readErr) throw new Error(readErr.message)
+  return booking as Booking
 }
 
 export const CANCEL_HOURS = 24
@@ -159,100 +156,127 @@ export function canCancel(lesson: Lesson): boolean {
 }
 
 export async function apiCancelBooking(bookingId: string): Promise<void> {
-  const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single()
-  if (!booking) throw new Error('Prenotazione non trovata.')
-  const b = booking as Booking
-  const { data: lessons } = await supabase.from('lessons').select('*').eq('id', b.lesson_id)
-  const lesson = (lessons ?? [])[0] as any
-  if (lesson && !canCancel({ ...lesson, attendedIds: [] })) {
-    throw new Error(`Non è più possibile cancellare: devi disdire entro il giorno prima.`)
-  }
-
-  // Se è una cancellazione lo stesso giorno, invia notifica
-  if (lesson) {
-    const lessonDate = new Date((lesson as any).start)
-    const today = new Date()
-    const isSameDay = lessonDate.getDate() === today.getDate() &&
-      lessonDate.getMonth() === today.getMonth() &&
-      lessonDate.getFullYear() === today.getFullYear()
-    if (isSameDay) {
-      await apiNotifySameDayCancel(b, lesson as Lesson)
-    }
-  }
-
-  await supabase.from('bookings').update({ status: 'cancellata' } as any).eq('id', bookingId)
+  const { error } = await supabase.rpc('cancel_booking', { p_booking_id: bookingId })
+  if (error) throw new Error(error.message)
 }
 
-// Notifica per cancellazioni stesso giorno (placeholder — da collegare a Telegram/email)
+// Notifica last-minute (placeholder — da collegare a Edge Function / Telegram)
 export async function apiNotifySameDayCancel(booking: Booking, lesson: { type: string; start: string }): Promise<void> {
   const { data: user } = await supabase.from('profiles').select('name').eq('id', booking.user_id).single()
   const name = (user as any)?.name ?? booking.user_id
-  const msg = `⚠️ Cancellazione last-minute: ${name} ha disdetto ${lesson.type} delle ${fmtTime(lesson.start)}`
-  console.log(msg)
-  // TODO: integrare notifica via Telegram / email
-  // const { error } = await supabase.functions.invoke('notify', { body: { message: msg } })
+  // Struttura messaggio pronta per successiva integrazione con Edge Function
+  const _msg = `⚠️ Cancellazione last-minute: ${name} ha disdetto ${lesson.type} delle ${fmtTime(lesson.start)}`
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[notify]', _msg)
+  }
+  // TODO: invocare qui una Edge Function `notify-last-minute-cancel`
+  // await supabase.functions.invoke('notify-last-minute-cancel', { body: { booking, lesson } })
 }
 
 // ---------------------------------------------------------------- SHOP -----
 
 export async function apiListProducts(): Promise<Product[]> {
-  const { data } = await supabase.from('products').select('*')
+  const { data, error } = await supabase.from('products').select('*')
+  if (error) throw new Error(error.message)
   return (data ?? []) as Product[]
 }
 
 export async function apiPurchase(userId: string, productId: string): Promise<Purchase> {
-  const { data: product } = await supabase.from('products').select('*').eq('id', productId).single()
+  const { data: product, error: pErr } = await supabase.from('products').select('*').eq('id', productId).single()
+  if (pErr) throw new Error(pErr.message)
   if (!product) throw new Error('Prodotto non trovato.')
   const purchase = { id: 'pur-' + uid(), user_id: userId, product_id: productId, price: (product as any).price }
-  const { data } = await supabase.from('purchases').insert(purchase).select().single()
+  const { data, error } = await supabase.from('purchases').insert(purchase).select().single()
+  if (error) throw new Error(error.message)
   return data as Purchase
 }
 
 export async function apiMyPurchases(userId: string): Promise<Purchase[]> {
-  const { data } = await supabase.from('purchases').select('*').eq('user_id', userId)
+  const { data, error } = await supabase.from('purchases').select('*').eq('user_id', userId)
+  if (error) throw new Error(error.message)
   return (data ?? []) as Purchase[]
 }
 
 // ---------------------------------------------------------------- ADMIN ----
 
 export async function apiListUsers(): Promise<User[]> {
-  const { data } = await supabase.from('profiles').select('*').neq('role', 'admin')
+  const { data, error } = await supabase.from('profiles').select('*').neq('role', 'admin')
+  if (error) throw new Error(error.message)
   return (data ?? []) as User[]
 }
 
 export async function apiSetAttendance(lessonId: string, userId: string, present: boolean): Promise<void> {
   if (present) {
-    await supabase.from('attendance').upsert({ lesson_id: lessonId, user_id: userId }, { onConflict: 'lesson_id,user_id' } as any)
+    const { error } = await supabase
+      .from('attendance')
+      .upsert({ lesson_id: lessonId, user_id: userId }, { onConflict: 'lesson_id,user_id' } as any)
+    if (error) throw new Error(error.message)
   } else {
-    await supabase.from('attendance').delete().match({ lesson_id: lessonId, user_id: userId } as any)
+    const { error } = await supabase
+      .from('attendance')
+      .delete()
+      .match({ lesson_id: lessonId, user_id: userId } as any)
+    if (error) throw new Error(error.message)
   }
 }
 
 export async function apiRecordPayment(userId: string, amount: number, method: string, note: string): Promise<Payment> {
   const payment = { id: 'pay-' + uid(), user_id: userId, amount, method, note }
-  const { data } = await supabase.from('payments').insert(payment).select().single()
+  const { data, error } = await supabase.from('payments').insert(payment).select().single()
+  if (error) throw new Error(error.message)
   return data as Payment
 }
 
 export async function apiListPayments(): Promise<Payment[]> {
-  const { data } = await supabase.from('payments').select('*')
+  const { data, error } = await supabase.from('payments').select('*')
+  if (error) throw new Error(error.message)
   return (data ?? []) as Payment[]
 }
 
 export async function apiListPurchases(): Promise<Purchase[]> {
-  const { data } = await supabase.from('purchases').select('*')
+  const { data, error } = await supabase.from('purchases').select('*')
+  if (error) throw new Error(error.message)
   return (data ?? []) as Purchase[]
 }
 
 // ---------------------------------------------------------------- FINANCE ---
 
+export interface UserFinance {
+  lessonsDue: number
+  shopDue: number
+  total: number
+  paid: number
+  balance: number
+  attendedLessons: Lesson[]
+}
+
+export async function apiUserFinance(
+  userId: string,
+  lessons: Lesson[],
+  bookings: Booking[],
+  purchases: Purchase[],
+  payments: Payment[],
+): Promise<UserFinance> {
+  // Calcolo locale (usato come fallback); il canon è la view `user_finance` server-side
+  const attendedLessons = lessons.filter(
+    (l) => l.attendedIds.includes(userId) && bookings.some((b) => b.lesson_id === l.id && b.user_id === userId && b.status === 'attiva'),
+  )
+  const lessonsDue = attendedLessons.reduce((s, l) => s + l.price, 0)
+  const shopDue = purchases.filter((p) => p.user_id === userId).reduce((s, p) => s + p.price, 0)
+  const paid = payments.filter((p) => p.user_id === userId).reduce((s, p) => s + p.amount, 0)
+  const total = lessonsDue + shopDue
+  return { attendedLessons, lessonsDue, shopDue, total, paid, balance: total - paid }
+}
+
+// Compatibilità con uso esistente (firma sincrona)
 export function computeUserFinance(
   userId: string,
   lessons: Lesson[],
   bookings: Booking[],
   purchases: Purchase[],
   payments: Payment[],
-) {
+): UserFinance {
   const attendedLessons = lessons.filter(
     (l) => l.attendedIds.includes(userId) && bookings.some((b) => b.lesson_id === l.id && b.user_id === userId && b.status === 'attiva'),
   )
@@ -288,8 +312,17 @@ export interface ProgressPhoto {
   notes: string
 }
 
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024 // 8 MB
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
 export async function apiUploadProgressPhoto(userId: string, file: File, type: 'before' | 'after', notes: string): Promise<string> {
-  const ext = file.name.split('.').pop()
+  if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+    throw new Error('Formato non supportato. Usa JPG, PNG o WebP.')
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error('File troppo grande (max 8 MB).')
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${userId}/${type}_${Date.now()}.${ext}`
   const { error: uploadError } = await supabase.storage.from('progress-photos').upload(path, file)
   if (uploadError) throw new Error('Errore upload foto: ' + uploadError.message)
@@ -309,8 +342,18 @@ export async function apiUploadProgressPhoto(userId: string, file: File, type: '
 }
 
 export async function apiListProgressPhotos(userId: string): Promise<ProgressPhoto[]> {
-  const { data } = await supabase.from('progress_photos').select('*').eq('user_id', userId).order('date', { ascending: false })
+  const { data, error } = await supabase
+    .from('progress_photos')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+  if (error) throw new Error(error.message)
   return (data ?? []) as ProgressPhoto[]
+}
+
+export async function apiDeleteProgressPhoto(id: string): Promise<void> {
+  const { error } = await supabase.from('progress_photos').delete().eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 // ----------------------------------------------------------- SEED (legacy) --

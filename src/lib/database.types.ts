@@ -69,6 +69,7 @@ export interface Booking {
   lesson_id: string
   status: 'attiva' | 'cancellata'
   created_at: string
+  cancelled_at: string | null
 }
 
 export interface Attendance {
