@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { Dumbbell } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
-import type { Gender } from '@/lib/db'
+import { registerSchema, type RegisterInput } from '@/lib/schemas'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,26 +15,29 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 export default function Register() {
   const { register } = useAuth()
   const navigate = useNavigate()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [gender, setGender] = useState<Gender>('donna')
-  const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    if (password.length < 6) {
-      setError('La password deve avere almeno 6 caratteri.')
-      return
-    }
+  const {
+    register: rhfRegister,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { name: '', email: '', password: '', gender: 'donna' },
+  })
+
+  const gender = watch('gender')
+
+  async function onSubmit(values: RegisterInput) {
     setBusy(true)
     try {
-      await register(name, email, password, gender)
+      await register(values.name, values.email, values.password, values.gender)
+      toast.success('Account creato. Benvenuto!')
       navigate('/prenota')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore durante la registrazione.')
+      toast.error(err instanceof Error ? err.message : 'Errore durante la registrazione.')
     } finally {
       setBusy(false)
     }
@@ -40,7 +46,7 @@ export default function Register() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">
       <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Dumbbell className="h-6 w-6" />
+        <Dumbbell className="h-6 w-6" aria-hidden />
       </span>
       <Card className="w-full">
         <CardHeader>
@@ -48,22 +54,29 @@ export default function Register() {
           <CardDescription>La registrazione è necessaria per prenotare le lezioni.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div className="space-y-1">
               <Label htmlFor="name">Nome e cognome</Label>
-              <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Anna Verdi" />
+              <Input id="name" placeholder="Anna Verdi" autoComplete="name" aria-invalid={!!errors.name} {...rhfRegister('name')} />
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
             <div className="space-y-1">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@esempio.it" />
+              <Input id="email" type="email" autoComplete="email" placeholder="tu@esempio.it" aria-invalid={!!errors.email} {...rhfRegister('email')} />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-1">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caratteri" />
+              <Input id="password" type="password" autoComplete="new-password" placeholder="Minimo 8 caratteri" aria-invalid={!!errors.password} {...rhfRegister('password')} />
+              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
             </div>
             <div className="space-y-2">
               <Label>Sesso</Label>
-              <RadioGroup value={gender} onValueChange={(v) => setGender(v as Gender)} className="flex gap-6">
+              <RadioGroup
+                value={gender}
+                onValueChange={(v) => setValue('gender', v as 'uomo' | 'donna', { shouldValidate: true })}
+                className="flex gap-6"
+              >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="donna" id="g-donna" />
                   <Label htmlFor="g-donna">Donna</Label>
@@ -74,7 +87,6 @@ export default function Register() {
                 </div>
               </RadioGroup>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button className="w-full" disabled={busy}>
               {busy ? 'Registrazione in corso…' : 'Registrati'}
             </Button>
