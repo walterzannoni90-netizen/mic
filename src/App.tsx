@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router'
+import { Toaster } from 'sonner'
 import { AuthProvider } from './lib/auth'
 import { Layout, RequireAdmin, RequireAuth } from './components/Layout'
 import Home from './pages/Home'
@@ -12,10 +13,13 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUtenti from './pages/admin/AdminUtenti'
 import AdminPagamenti from './pages/admin/AdminPagamenti'
+import Privacy from './pages/Privacy'
+import Termini from './pages/Termini'
 
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster richColors position="top-right" />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
@@ -46,6 +50,8 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/termini" element={<Termini />} />
           <Route
             path="/admin"
             element={
