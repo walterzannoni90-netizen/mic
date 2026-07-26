@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarCheck, Euro, Users } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   apiListBookings,
   apiListLessons,
@@ -16,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { PageLoader } from '@/components/PageLoader'
 
 function isToday(isoStr: string) {
   const d = new Date(isoStr)
@@ -28,13 +30,20 @@ export default function AdminDashboard() {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
+  const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [u, l, b, p] = await Promise.all([apiListUsers(), apiListLessons(), apiListBookings(), apiListPayments()])
-    setUsers(u)
-    setLessons(l)
-    setBookings(b)
-    setPayments(p)
+    try {
+      const [u, l, b, p] = await Promise.all([apiListUsers(), apiListLessons(), apiListBookings(), apiListPayments()])
+      setUsers(u)
+      setLessons(l)
+      setBookings(b)
+      setPayments(p)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore caricamento dashboard.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -46,9 +55,15 @@ export default function AdminDashboard() {
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
 
   async function toggleAttendance(lessonId: string, userId: string, present: boolean) {
-    await apiSetAttendance(lessonId, userId, present)
-    await reload()
+    try {
+      await apiSetAttendance(lessonId, userId, present)
+      await reload()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore aggiornamento presenza.')
+    }
   }
+
+  if (loading) return <PageLoader label="Carico dashboard…" />
 
   return (
     <div className="space-y-8">
@@ -56,7 +71,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Totale utenti</CardTitle>
-            <Users className="h-5 w-5 text-primary" />
+            <Users className="h-5 w-5 text-primary" aria-hidden />
           </CardHeader>
           <CardContent>
             <p className="font-display text-4xl font-black">{users.length}</p>
@@ -65,7 +80,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Lezioni oggi</CardTitle>
-            <CalendarCheck className="h-5 w-5 text-primary" />
+            <CalendarCheck className="h-5 w-5 text-primary" aria-hidden />
           </CardHeader>
           <CardContent>
             <p className="font-display text-4xl font-black">{todayLessons.length}</p>
@@ -74,7 +89,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Incassi totali</CardTitle>
-            <Euro className="h-5 w-5 text-primary" />
+            <Euro className="h-5 w-5 text-primary" aria-hidden />
           </CardHeader>
           <CardContent>
             <p className="font-display text-4xl font-black">{euro(incassi)}</p>

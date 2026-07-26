@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import {
   apiListBookings,
   apiListLessons,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { PageLoader } from '@/components/PageLoader'
 
 export default function AdminPagamenti() {
   const [users, setUsers] = useState<User[]>([])
@@ -39,20 +41,27 @@ export default function AdminPagamenti() {
   const [method, setMethod] = useState('Contanti')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [u, l, b, pu, pa] = await Promise.all([
-      apiListUsers(),
-      apiListLessons(),
-      apiListBookings(),
-      apiListPurchases(),
-      apiListPayments(),
-    ])
-    setUsers(u)
-    setLessons(l)
-    setBookings(b)
-    setPurchases(pu)
-    setPayments(pa)
+    try {
+      const [u, l, b, pu, pa] = await Promise.all([
+        apiListUsers(),
+        apiListLessons(),
+        apiListBookings(),
+        apiListPurchases(),
+        apiListPayments(),
+      ])
+      setUsers(u)
+      setLessons(l)
+      setBookings(b)
+      setPurchases(pu)
+      setPayments(pa)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore caricamento pagamenti.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -80,13 +89,24 @@ export default function AdminPagamenti() {
     e.preventDefault()
     if (!payUser) return
     const value = Number(amount)
-    if (!Number.isFinite(value) || value <= 0) return
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error('Importo non valido.')
+      return
+    }
     setBusy(true)
-    await apiRecordPayment(payUser.id, value, method, note)
-    setBusy(false)
-    setPayUser(null)
-    await reload()
+    try {
+      await apiRecordPayment(payUser.id, value, method, note)
+      toast.success('Pagamento registrato.')
+      setPayUser(null)
+      await reload()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore registrazione pagamento.')
+    } finally {
+      setBusy(false)
+    }
   }
+
+  if (loading) return <PageLoader label="Carico pagamenti…" />
 
   return (
     <div className="space-y-8">
@@ -135,6 +155,13 @@ export default function AdminPagamenti() {
                     </td>
                   </tr>
                 ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-6 text-center text-muted-foreground">
+                      Nessun utente registrato.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -176,7 +203,7 @@ export default function AdminPagamenti() {
               <Input
                 id="amount"
                 type="number"
-                min="1"
+                min="0.01"
                 step="0.01"
                 required
                 value={amount}
@@ -185,11 +212,11 @@ export default function AdminPagamenti() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="method">Metodo</Label>
-              <Input id="method" value={method} onChange={(e) => setMethod(e.target.value)} />
+              <Input id="method" value={method} onChange={(e) => setMethod(e.target.value)} maxLength={40} required />
             </div>
             <div className="space-y-1">
               <Label htmlFor="note">Nota (opzionale)</Label>
-              <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
+              <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setPayUser(null)}>

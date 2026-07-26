@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   apiListBookings,
   apiListLessons,
@@ -7,6 +8,7 @@ import {
   apiListUsers,
   computeUserFinance,
   apiListPayments,
+  apiListProducts,
   euro,
   fmtDate,
   fmtTime,
@@ -16,11 +18,11 @@ import {
   type Product,
   type Purchase,
   type User,
-  apiListProducts,
 } from '@/lib/db'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { PageLoader } from '@/components/PageLoader'
 
 export default function AdminUtenti() {
   const [users, setUsers] = useState<User[]>([])
@@ -31,22 +33,29 @@ export default function AdminUtenti() {
   const [products, setProducts] = useState<Product[]>([])
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const [u, l, b, pu, pa, pr] = await Promise.all([
-      apiListUsers(),
-      apiListLessons(),
-      apiListBookings(),
-      apiListPurchases(),
-      apiListPayments(),
-      apiListProducts(),
-    ])
-    setUsers(u)
-    setLessons(l)
-    setBookings(b)
-    setPurchases(pu)
-    setPayments(pa)
-    setProducts(pr)
+    try {
+      const [u, l, b, pu, pa, pr] = await Promise.all([
+        apiListUsers(),
+        apiListLessons(),
+        apiListBookings(),
+        apiListPurchases(),
+        apiListPayments(),
+        apiListProducts(),
+      ])
+      setUsers(u)
+      setLessons(l)
+      setBookings(b)
+      setPurchases(pu)
+      setPayments(pa)
+      setProducts(pr)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Errore caricamento utenti.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -67,11 +76,13 @@ export default function AdminUtenti() {
   const lessonById = useMemo(() => new Map(lessons.map((l) => [l.id, l])), [lessons])
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
 
+  if (loading) return <PageLoader label="Carico utenti…" />
+
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <div>
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
             className="pl-9"
             placeholder="Cerca per nome o email…"

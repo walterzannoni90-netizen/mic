@@ -5,14 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { apiListLessons, fmtDate, fmtTime, type Lesson } from '@/lib/db'
+import { siteConfig } from '@/lib/site'
 
 export default function Home() {
   const [upcoming, setUpcoming] = useState<Lesson[]>([])
 
   useEffect(() => {
-    apiListLessons().then((ls) => {
-      setUpcoming(ls.filter((l) => new Date(l.start).getTime() > Date.now()).slice(0, 6))
-    })
+    apiListLessons()
+      .then((ls) => setUpcoming(ls.filter((l) => new Date(l.start).getTime() > Date.now()).slice(0, 6)))
+      .catch(() => setUpcoming([]))
   }, [])
 
   return (
@@ -29,7 +30,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:grid-cols-[1.2fr_1fr] md:py-24">
           <div className="flex flex-col items-start gap-8">
             <Badge variant="outline" className="border-primary/50 text-primary">
-              Back in Shape · Personal Training · Marzia Micillo
+              {siteConfig.brand.tagline}
             </Badge>
             <h1 className="font-display max-w-3xl text-5xl font-black uppercase leading-[0.95] tracking-tight md:text-7xl">
               Allenati con <span className="text-primary">Marzia</span>.<br />
@@ -42,31 +43,22 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <Button size="lg" asChild>
                 <Link to="/prenota">
-                  Prenota una lezione <ArrowRight className="ml-2 h-4 w-4" />
+                  Prenota una lezione <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link to="/shop">Schede & programmi online</Link>
               </Button>
             </div>
-            <div className="mt-6 grid grid-cols-3 gap-8 text-center md:gap-16">
-              {[
-                ['10+', 'anni di esperienza'],
-                ['300+', 'clienti seguiti'],
-                ['6', 'giorni a settimana'],
-              ].map(([n, l]) => (
-                <div key={l}>
-                  <p className="font-display text-3xl font-black text-primary md:text-4xl">{n}</p>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{l}</p>
-                </div>
-              ))}
-            </div>
           </div>
           <div className="relative">
             <div className="absolute -inset-4 rounded-2xl bg-primary/20 blur-2xl" aria-hidden />
             <img
-              src="images/hero-marzia.jpeg"
-              alt="Marzia Micillo personal trainer nella sua palestra"
+              src={siteConfig.brand.heroSrc}
+              alt={`${siteConfig.brand.name} — personal trainer`}
+              loading="eager"
+              width={720}
+              height={960}
               className="relative aspect-[3/4] w-full rounded-2xl border border-primary/30 object-cover object-top shadow-2xl"
             />
           </div>
@@ -78,8 +70,11 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 md:grid-cols-2">
           <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-xl border border-border bg-gradient-to-br from-secondary to-background">
             <img
-              src="images/logo.jpeg"
-              alt="Logo Back in Shape - Marzia Micillo"
+              src={siteConfig.brand.logoSrc}
+              alt={`${siteConfig.brand.name} logo`}
+              loading="lazy"
+              width={400}
+              height={500}
               className="h-full w-full object-cover"
             />
           </div>
@@ -112,27 +107,31 @@ export default function Home() {
             </div>
             <Button variant="ghost" asChild>
               <Link to="/prenota">
-                Vedi tutto <ArrowRight className="ml-1 h-4 w-4" />
+                Vedi tutto <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
               </Link>
             </Button>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {upcoming.map((l) => (
-              <Card key={l.id}>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <CalendarCheck className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{l.type}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {fmtDate(l.start)} · {fmtTime(l.start)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessuna lezione disponibile. Torna a controllare!</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {upcoming.map((l) => (
+                <Card key={l.id}>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <CalendarCheck className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{l.type}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {fmtDate(l.start)} · {fmtTime(l.start)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -145,21 +144,25 @@ export default function Home() {
             <Card>
               <CardContent className="space-y-4 p-6">
                 <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <span>Via Tullio Ostilio 8, Milano</span>
+                  <MapPin className="h-5 w-5 text-primary" aria-hidden />
+                  <span>{siteConfig.contact.address}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-primary" />
-                  <span>333 932 4861</span>
+                  <Phone className="h-5 w-5 text-primary" aria-hidden />
+                  <a href={siteConfig.contact.phoneHref} className="hover:underline">
+                    {siteConfig.contact.phone}
+                  </a>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-primary" />
-                  <span>marzia.micillo91@gmail.com</span>
+                  <Mail className="h-5 w-5 text-primary" aria-hidden />
+                  <a href={`mailto:${siteConfig.contact.email}`} className="hover:underline">
+                    {siteConfig.contact.email}
+                  </a>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Instagram className="h-5 w-5 text-primary" />
-                  <a href="https://instagram.com/backinshape_marziamicillo" target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    @backinshape_marziamicillo
+                  <Instagram className="h-5 w-5 text-primary" aria-hidden />
+                  <a href={siteConfig.contact.instagram} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {siteConfig.contact.instagramHandle}
                   </a>
                 </div>
               </CardContent>
@@ -167,10 +170,10 @@ export default function Home() {
             <Card>
               <CardContent className="space-y-4 p-6">
                 <p className="font-semibold">Orari</p>
-                <p className="text-sm text-muted-foreground">Lun – Ven: 8:00 – 20:00</p>
-                <p className="text-sm text-muted-foreground">Pausa: 13:00 – 14:00</p>
-                <p className="text-sm text-muted-foreground">Sabato: 8:00 – 13:00</p>
-                <p className="text-sm text-muted-foreground">Domenica: chiuso</p>
+                <p className="text-sm text-muted-foreground">{siteConfig.hours.weekday}</p>
+                <p className="text-sm text-muted-foreground">{siteConfig.hours.weekdayBreak}</p>
+                <p className="text-sm text-muted-foreground">{siteConfig.hours.saturday}</p>
+                <p className="text-sm text-muted-foreground">{siteConfig.hours.sunday}</p>
               </CardContent>
             </Card>
           </div>
@@ -179,7 +182,7 @@ export default function Home() {
 
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-4 py-24 text-center">
-        <Camera className="mx-auto mb-4 h-10 w-10 text-primary" />
+        <Camera className="mx-auto mb-4 h-10 w-10 text-primary" aria-hidden />
         <h2 className="font-display mb-4 text-4xl font-bold uppercase md:text-5xl">
           Pronto a cominciare?
         </h2>

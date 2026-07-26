@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { CheckCircle2, ClipboardList, Salad } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
 import { apiListProducts, apiPurchase, euro, type Product } from '@/lib/db'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { PageLoader } from '@/components/PageLoader'
 
 export default function Shop() {
   const { user } = useAuth()
@@ -22,15 +24,14 @@ export default function Shop() {
   const [selected, setSelected] = useState<Product | null>(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
-  const [error, setError] = useState('')
-
-  const load = useCallback(async () => {
-    setProducts(await apiListProducts())
-  }, [])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    void load()
-  }, [load])
+    apiListProducts()
+      .then(setProducts)
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Errore caricamento prodotti.'))
+      .finally(() => setLoading(false))
+  }, [])
 
   function openCheckout(p: Product) {
     if (!user) {
@@ -39,18 +40,17 @@ export default function Shop() {
     }
     setSelected(p)
     setDone(false)
-    setError('')
   }
 
   async function confirm() {
     if (!selected || !user) return
     setBusy(true)
-    setError('')
     try {
       await apiPurchase(user.id, selected.id)
       setDone(true)
+      toast.success('Acquisto completato!')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Errore nell\'acquisto.')
+      toast.error(err instanceof Error ? err.message : "Errore nell'acquisto.")
     } finally {
       setBusy(false)
     }
@@ -61,9 +61,9 @@ export default function Shop() {
       <CardHeader>
         <div className="mb-2 flex items-center justify-between">
           {p.category === 'scheda' ? (
-            <ClipboardList className="h-7 w-7 text-primary" />
+            <ClipboardList className="h-7 w-7 text-primary" aria-hidden />
           ) : (
-            <Salad className="h-7 w-7 text-primary" />
+            <Salad className="h-7 w-7 text-primary" aria-hidden />
           )}
           <Badge variant="secondary">{p.category === 'scheda' ? 'Scheda' : 'Alimentazione'}</Badge>
         </div>
@@ -80,6 +80,8 @@ export default function Shop() {
 
   const schede = products.filter((p) => p.category === 'scheda')
   const alimentazioni = products.filter((p) => p.category === 'alimentazione')
+
+  if (loading) return <PageLoader label="Carico lo shop…" />
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -105,7 +107,7 @@ export default function Shop() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-primary" /> Acquisto completato
+                  <CheckCircle2 className="h-5 w-5 text-primary" aria-hidden /> Acquisto completato
                 </DialogTitle>
                 <DialogDescription>
                   "{selected?.name}" è stato aggiunto al tuo profilo. L'importo risulta ora nei tuoi
@@ -126,7 +128,6 @@ export default function Shop() {
                   l'addebito verrà registrato sul tuo conto in palestra.
                 </DialogDescription>
               </DialogHeader>
-              {error && <p className="text-sm text-destructive">{error}</p>}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setSelected(null)}>
                   Annulla
