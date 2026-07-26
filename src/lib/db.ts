@@ -163,12 +163,10 @@ export async function apiCancelBooking(bookingId: string): Promise<void> {
 // Notifica last-minute (placeholder — da collegare a Edge Function / Telegram)
 export async function apiNotifySameDayCancel(booking: Booking, lesson: { type: string; start: string }): Promise<void> {
   const { data: user } = await supabase.from('profiles').select('name').eq('id', booking.user_id).single()
-  const name = (user as any)?.name ?? booking.user_id
-  // Struttura messaggio pronta per successiva integrazione con Edge Function
-  const _msg = `⚠️ Cancellazione last-minute: ${name} ha disdetto ${lesson.type} delle ${fmtTime(lesson.start)}`
+  const name = (user as User | null)?.name ?? booking.user_id
+  const message = `⚠️ Cancellazione last-minute: ${name} ha disdetto ${lesson.type} delle ${fmtTime(lesson.start)}`
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.debug('[notify]', _msg)
+    console.debug('[notify]', message)
   }
   // TODO: invocare qui una Edge Function `notify-last-minute-cancel`
   // await supabase.functions.invoke('notify-last-minute-cancel', { body: { booking, lesson } })
@@ -186,7 +184,7 @@ export async function apiPurchase(userId: string, productId: string): Promise<Pu
   const { data: product, error: pErr } = await supabase.from('products').select('*').eq('id', productId).single()
   if (pErr) throw new Error(pErr.message)
   if (!product) throw new Error('Prodotto non trovato.')
-  const purchase = { id: 'pur-' + uid(), user_id: userId, product_id: productId, price: (product as any).price }
+  const purchase = { id: 'pur-' + uid(), user_id: userId, product_id: productId, price: product.price }
   const { data, error } = await supabase.from('purchases').insert(purchase).select().single()
   if (error) throw new Error(error.message)
   return data as Purchase
@@ -210,13 +208,13 @@ export async function apiSetAttendance(lessonId: string, userId: string, present
   if (present) {
     const { error } = await supabase
       .from('attendance')
-      .upsert({ lesson_id: lessonId, user_id: userId }, { onConflict: 'lesson_id,user_id' } as any)
+      .upsert({ lesson_id: lessonId, user_id: userId }, { onConflict: 'lesson_id,user_id' })
     if (error) throw new Error(error.message)
   } else {
     const { error } = await supabase
       .from('attendance')
       .delete()
-      .match({ lesson_id: lessonId, user_id: userId } as any)
+      .match({ lesson_id: lessonId, user_id: userId })
     if (error) throw new Error(error.message)
   }
 }
